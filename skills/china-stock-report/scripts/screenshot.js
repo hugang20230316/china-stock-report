@@ -170,21 +170,24 @@ async function screenshotStock(context, stock, outputDir) {
     }
 
     const clipInfo = await page.evaluate(() => {
+      const header = document.querySelector('.mqc_k_header');
       const kChart = document.querySelector('.k_chart');
       if (!kChart) return null;
 
       const chartRect = kChart.getBoundingClientRect();
-      const quotaPanel = kChart.querySelector('.__quota, .kt-pad, .cmfb_img');
-      const quotaRect = quotaPanel ? quotaPanel.getBoundingClientRect() : null;
-      const topInset = Math.round(chartRect.height * 0.12);
-      const rightInset = quotaRect ? Math.ceil(quotaRect.width) + 6 : 0;
-      const mainChartHeight = Math.round(chartRect.height * 0.40);
+      const klineHeight = chartRect.height * 0.5;
+
+      let top = chartRect.y;
+      if (header) {
+        const headerRect = header.getBoundingClientRect();
+        top = headerRect.y;
+      }
 
       return {
         x: Math.round(chartRect.x) - 2,
-        y: Math.round(chartRect.y + topInset),
-        width: Math.round(chartRect.width - rightInset) + 4,
-        height: mainChartHeight,
+        y: Math.round(top) - 2,
+        width: Math.round(chartRect.width) + 4,
+        height: Math.round(klineHeight + (chartRect.y - top)) + 4,
       };
     });
 
