@@ -11,7 +11,7 @@
 
 ### 总览页
 
-![stock report overview](skills/china-stock-report/assets/readme/stock_report_overview.png)
+![stock report overview](skills/china-stock-report/assets/readme/stock_report_overview_compact.png)
 
 ### 展开详情页
 

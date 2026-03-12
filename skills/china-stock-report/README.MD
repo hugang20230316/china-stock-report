@@ -8,7 +8,7 @@
 
 ### 总览页
 
-![stock report overview](assets/readme/stock_report_overview.png)
+![stock report overview](assets/readme/stock_report_overview_compact.png)
 
 ### 展开详情页
 
