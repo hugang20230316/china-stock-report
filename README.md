@@ -36,20 +36,6 @@ china-stock-report-publish/
 - Playwright
 - 已安装并可运行的 `china-stock-analysis` skill
 
-## 发布到 GitHub
-
-推荐把整个仓库推到 GitHub，而不是只上传 skill 目录。
-
-```powershell
-cd C:\Users\58219\china-stock-report-publish
-git init
-git add .
-git commit -m "Initial publish of china-stock-report skill"
-git branch -M main
-git remote add origin https://github.com/<你的用户名>/<你的仓库名>.git
-git push -u origin main
-```
-
 ## 如何安装
 
 ### 方式 1：通过 GitHub 子目录安装
