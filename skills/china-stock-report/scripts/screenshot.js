@@ -12,12 +12,25 @@
  */
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { ROOT_DIR, config, paths } = require('./lib/report_config');
 
 function loadPlaywright() {
+  const homeDir = os.homedir();
   const fallbackPaths = [
     process.env.STOCK_PLAYWRIGHT_PATH,
     path.join(ROOT_DIR, 'node_modules', 'playwright'),
+    path.join(homeDir, '.cache', 'opencode', 'node_modules', 'playwright'),
+    path.join(
+      homeDir,
+      '.claude',
+      'plugins',
+      'marketplaces',
+      'claude-plugins-official',
+      'external_plugins',
+      'playwright'
+    ),
+    path.join(homeDir, '.codex', 'vendor_imports', 'skills', 'skills', '.curated', 'playwright'),
   ].filter(Boolean);
 
   try {
@@ -36,6 +49,20 @@ function loadPlaywright() {
 }
 
 const { chromium } = loadPlaywright();
+
+function resolveBrowserExecutable() {
+  const candidates = [
+    process.env.STOCK_BROWSER_EXECUTABLE_PATH,
+    process.env.CHROME_PATH,
+    path.join(process.env['ProgramFiles'] || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    path.join(process.env['ProgramFiles(x86)'] || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    path.join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    path.join(process.env['ProgramFiles'] || '', 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+    path.join(process.env['ProgramFiles(x86)'] || '', 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+  ].filter(Boolean);
+
+  return candidates.find((candidate) => fs.existsSync(candidate)) || null;
+}
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -198,7 +225,14 @@ async function runParallel(tasks, concurrency) {
   console.log(`截图: ${stocks.length} 只, 并发: ${concurrency}, 目录: ${outputDir}`);
   const startTime = Date.now();
 
-  const browser = await chromium.launch({ headless: true });
+  const executablePath = resolveBrowserExecutable();
+  if (executablePath) {
+    console.log(`使用浏览器: ${executablePath}`);
+  }
+  const browser = await chromium.launch({
+    headless: true,
+    executablePath: executablePath || undefined,
+  });
   const context = await browser.newContext({ viewport: { width: 1400, height: 1600 } });
 
   const tasks = stocks.map((stock) => async () => {

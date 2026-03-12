@@ -2,7 +2,16 @@
 
 `china-stock-report` 是一个用于生成 A 股当日推荐 HTML 报告的 Codex skill。
 
-它依赖 `china-stock-analysis` 先生成当天 raw output，再执行校验、补数、截图和 HTML 组装，最终输出 `stock_report_YYYYMMDD.html`。
+它依赖 `china-stock-analysis` 先生成当天 raw output，再执行校验、补数、截图和 HTML 组装，最终输出 `stock_report_YYYYMMDD.html`，并额外生成一个可直接查看的 PNG 预览图。
+
+## 成品截图
+
+![stock report preview](skills/china-stock-report/assets/readme/stock_report_preview.png)
+
+默认交付物：
+
+- HTML：`reports/stock_report_YYYYMMDD.html`
+- 预览图：`assets/YYYYMMDD/report_preview.png`
 
 ## 仓库结构
 
@@ -11,7 +20,9 @@ china-stock-report-publish/
 ├── README.md
 └── skills/
     └── china-stock-report/
+        ├── README.MD
         ├── SKILL.md
+        ├── assets/
         ├── agents/openai.yaml
         ├── config/report.config.json
         ├── scripts/
@@ -65,6 +76,8 @@ python <skill-installer>/scripts/install-skill-from-github.py \
   - 指向自定义配置文件
 - `STOCK_PLAYWRIGHT_PATH`
   - 指向可用的 Playwright 安装路径
+- `STOCK_BROWSER_EXECUTABLE_PATH`
+  - 指向本机 Chrome/Edge 可执行文件；未设置时会自动探测常见安装路径
 
 ## 快速测试
 
@@ -82,6 +95,7 @@ node --check C:\Users\58219\china-stock-report-publish\skills\china-stock-report
 node --check C:\Users\58219\china-stock-report-publish\skills\china-stock-report\scripts\verify_raw.js
 node --check C:\Users\58219\china-stock-report-publish\skills\china-stock-report\scripts\build_analysis_from_raw.js
 node --check C:\Users\58219\china-stock-report-publish\skills\china-stock-report\scripts\screenshot.js
+node --check C:\Users\58219\china-stock-report-publish\skills\china-stock-report\scripts\capture_report_preview.js
 node --check C:\Users\58219\china-stock-report-publish\skills\china-stock-report\scripts\generate_report_html.js
 ```
 
@@ -90,5 +104,5 @@ node --check C:\Users\58219\china-stock-report-publish\skills\china-stock-report
 安装后，可用类似提示词触发：
 
 ```text
-Use $china-stock-report to validate today's raw stock analysis input and generate stock_report_YYYYMMDD.html.
+Use $china-stock-report to validate today's raw stock analysis input and generate stock_report_YYYYMMDD.html with a preview PNG.
 ```
