@@ -1,0 +1,11 @@
+node_modules/
+
+assets/[0-9]*/
+assets/_debug/
+
+data/analysis/
+data/raw/
+data/tmp/
+data/legacy/
+
+reports/

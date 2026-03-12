@@ -1,0 +1,32 @@
+{
+  "baseDir": ".",
+  "paths": {
+    "assetsDir": "assets",
+    "reportsDir": "reports",
+    "rawDataDir": "data\\raw",
+    "analysisDir": "data\\analysis",
+    "legacyDataDir": "data\\legacy",
+    "debugDir": "assets\\_debug"
+  },
+  "htmlGeneration": {
+    "inputPattern": "analysis_result_{date}.json",
+    "outputPattern": "stock_report_{date}.html",
+    "requiredSourceSkill": "china-stock-analysis",
+    "requiredSourceType": "raw-output",
+    "requireRawOutputConfirmed": true,
+    "requireRawFileInRawDataDir": true,
+    "rejectHistoricalData": true,
+    "requiredTopCount": 6
+  },
+  "assistantBehavior": {
+    "skipConfirmationPrompts": true,
+    "defaultDelivery": "final-html-only",
+    "suppressIntermediateOutput": true
+  },
+  "network": {
+    "requestTimeoutMs": 10000
+  },
+  "screenshots": {
+    "defaultConcurrency": 3
+  }
+}

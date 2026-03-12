@@ -1,0 +1,4 @@
+interface:
+  display_name: "China Stock Report"
+  short_description: "基于当日分析结果生成 A 股推荐 HTML 报告"
+  default_prompt: "Use $china-stock-report to generate today's A-share recommendation report and output stock_report_YYYYMMDD.html."
