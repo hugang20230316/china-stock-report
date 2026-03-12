@@ -115,16 +115,21 @@ function imgToBase64(filePath) {
 }
 
 function resolveImagePath(assetDir, item) {
-  const exactPath = path.join(assetDir, `${item.rank}_${item.name}_${item.code}.jpeg`);
-  if (fs.existsSync(exactPath)) return exactPath;
+  const suffix = `_${item.name}_${item.code}.jpeg`;
+  const matches = fs.readdirSync(assetDir)
+    .filter((file) => file.endsWith(suffix))
+    .map((file) => ({
+      file,
+      fullPath: path.join(assetDir, file),
+      mtimeMs: fs.statSync(path.join(assetDir, file)).mtimeMs,
+    }))
+    .sort((a, b) => b.mtimeMs - a.mtimeMs);
 
-  const match = fs.readdirSync(assetDir).find((file) =>
-    file.endsWith(`_${item.name}_${item.code}.jpeg`)
-  );
-  if (!match) {
+  if (!matches.length) {
     throw new Error(`未找到截图文件: ${item.name} ${item.code}`);
   }
-  return path.join(assetDir, match);
+
+  return matches[0].fullPath;
 }
 
 function fmtPct(value) {

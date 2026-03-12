@@ -82,7 +82,24 @@ function parseArgs() {
       i++;
     }
   }
+
+  stocks = stocks.map((stock, index) => ({
+    ...stock,
+    seq: stock.seq ?? String(index + 1).padStart(2, '0'),
+  }));
+
   return { date, stocks, concurrency };
+}
+
+function removeStaleShots(outputDir, stock, keepFilename) {
+  if (!fs.existsSync(outputDir)) return;
+
+  const suffix = `_${stock.name}_${stock.code}.jpeg`;
+  for (const file of fs.readdirSync(outputDir)) {
+    if (file === keepFilename) continue;
+    if (!file.endsWith(suffix)) continue;
+    fs.unlinkSync(path.join(outputDir, file));
+  }
 }
 
 async function closePopups(page) {
@@ -153,24 +170,21 @@ async function screenshotStock(context, stock, outputDir) {
     }
 
     const clipInfo = await page.evaluate(() => {
-      const header = document.querySelector('.mqc_k_header');
       const kChart = document.querySelector('.k_chart');
       if (!kChart) return null;
 
       const chartRect = kChart.getBoundingClientRect();
-      const klineHeight = chartRect.height * 0.5;
-
-      let top = chartRect.y;
-      if (header) {
-        const headerRect = header.getBoundingClientRect();
-        top = headerRect.y;
-      }
+      const quotaPanel = kChart.querySelector('.__quota, .kt-pad, .cmfb_img');
+      const quotaRect = quotaPanel ? quotaPanel.getBoundingClientRect() : null;
+      const topInset = Math.round(chartRect.height * 0.12);
+      const rightInset = quotaRect ? Math.ceil(quotaRect.width) + 6 : 0;
+      const mainChartHeight = Math.round(chartRect.height * 0.40);
 
       return {
         x: Math.round(chartRect.x) - 2,
-        y: Math.round(top) - 2,
-        width: Math.round(chartRect.width) + 4,
-        height: Math.round(klineHeight + (chartRect.y - top)) + 4,
+        y: Math.round(chartRect.y + topInset),
+        width: Math.round(chartRect.width - rightInset) + 4,
+        height: mainChartHeight,
       };
     });
 
@@ -179,11 +193,14 @@ async function screenshotStock(context, stock, outputDir) {
       return;
     }
 
+    removeStaleShots(outputDir, stock, filename);
+
     await page.screenshot({
       path: outputPath,
       type: 'jpeg',
       quality: 92,
       clip: clipInfo,
+      timeout: 0,
     });
 
     const costMs = Date.now() - startTime;
