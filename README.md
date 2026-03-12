@@ -9,14 +9,13 @@
 ```text
 china-stock-report-publish/
 ├── README.md
-└── .agents/
-    └── skills/
-        └── china-stock-report/
-            ├── SKILL.md
-            ├── agents/openai.yaml
-            ├── config/report.config.json
-            ├── scripts/
-            └── references/
+└── skills/
+    └── china-stock-report/
+        ├── SKILL.md
+        ├── agents/openai.yaml
+        ├── config/report.config.json
+        ├── scripts/
+        └── references/
 ```
 
 ## 依赖
@@ -48,12 +47,12 @@ git push -u origin main
 
 ```bash
 python <skill-installer>/scripts/install-skill-from-github.py \
-  --url https://github.com/<你的用户名>/<你的仓库名>/tree/main/.agents/skills/china-stock-report
+  --url https://github.com/<你的用户名>/<你的仓库名>/tree/main/skills/china-stock-report
 ```
 
 ### 方式 2：手工安装
 
-把仓库中的 `.agents/skills/china-stock-report` 整个目录复制到本机 skill 目录中：
+把仓库中的 `skills/china-stock-report` 整个目录复制到本机 skill 目录中：
 
 - 新版文档路径通常是 `~/.agents/skills/`
 - 你当前本机这套环境使用的是 `~/.codex/skills/`
@@ -73,17 +72,17 @@ python <skill-installer>/scripts/install-skill-from-github.py \
 
 ```powershell
 python -X utf8 C:\Users\58219\.codex\skills\.system\skill-creator\scripts\quick_validate.py `
-  C:\Users\58219\china-stock-report-publish\.agents\skills\china-stock-report
+  C:\Users\58219\china-stock-report-publish\skills\china-stock-report
 ```
 
 再检查关键脚本语法：
 
 ```powershell
-node --check C:\Users\58219\china-stock-report-publish\.agents\skills\china-stock-report\scripts\fetch_data.js
-node --check C:\Users\58219\china-stock-report-publish\.agents\skills\china-stock-report\scripts\verify_raw.js
-node --check C:\Users\58219\china-stock-report-publish\.agents\skills\china-stock-report\scripts\build_analysis_from_raw.js
-node --check C:\Users\58219\china-stock-report-publish\.agents\skills\china-stock-report\scripts\screenshot.js
-node --check C:\Users\58219\china-stock-report-publish\.agents\skills\china-stock-report\scripts\generate_report_html.js
+node --check C:\Users\58219\china-stock-report-publish\skills\china-stock-report\scripts\fetch_data.js
+node --check C:\Users\58219\china-stock-report-publish\skills\china-stock-report\scripts\verify_raw.js
+node --check C:\Users\58219\china-stock-report-publish\skills\china-stock-report\scripts\build_analysis_from_raw.js
+node --check C:\Users\58219\china-stock-report-publish\skills\china-stock-report\scripts\screenshot.js
+node --check C:\Users\58219\china-stock-report-publish\skills\china-stock-report\scripts\generate_report_html.js
 ```
 
 ## 生成测试
