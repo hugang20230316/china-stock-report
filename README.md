@@ -39,7 +39,7 @@ git remote add origin https://github.com/<你的用户名>/<你的仓库名>.git
 git push -u origin main
 ```
 
-## 别人如何安装
+## 如何安装
 
 ### 方式 1：通过 GitHub 子目录安装
 
@@ -92,25 +92,3 @@ node --check C:\Users\58219\china-stock-report-publish\skills\china-stock-report
 ```text
 Use $china-stock-report to validate today's raw stock analysis input and generate stock_report_YYYYMMDD.html.
 ```
-
-## 如果想进官方技能目录
-
-可选路径是向 `openai/skills` 提交 PR。
-
-建议顺序：
-
-1. 先用你自己的 GitHub 仓库公开发布并自测安装链路
-2. 再整理成 `openai/skills` 接受的目录结构
-3. 先投 `.experimental`
-4. 稳定后再考虑 `.curated`
-
-提交前至少确认：
-
-- `SKILL.md` frontmatter 合法
-- `agents/openai.yaml` 可用
-- 不依赖你私有机器上的写死路径
-- 脚本和文档都能在公开环境下解释清楚依赖关系
-
-## 当前发布建议
-
-优先走 GitHub 自托管发布。这条路径最快，也最容易让别人先装起来测试。
