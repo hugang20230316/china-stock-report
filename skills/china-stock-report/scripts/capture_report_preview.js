@@ -82,7 +82,7 @@ function main() {
   }
 
   const browserPath = resolveBrowserExecutable();
-  const inputUrl = pathToFileURL(path.resolve(input)).href;
+  const inputUrl = `${pathToFileURL(path.resolve(input)).href}?preview=1`;
 
   fs.mkdirSync(path.dirname(output), { recursive: true });
 
@@ -93,7 +93,7 @@ function main() {
       '--disable-gpu',
       '--hide-scrollbars',
       '--virtual-time-budget=3000',
-      '--window-size=1600,2200',
+      '--window-size=1600,3200',
       `--screenshot=${path.resolve(output)}`,
       inputUrl,
     ],

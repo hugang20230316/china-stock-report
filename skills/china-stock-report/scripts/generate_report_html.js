@@ -114,10 +114,22 @@ function imgToBase64(filePath) {
   return fs.readFileSync(filePath).toString('base64');
 }
 
+function getImageMimeType(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.gif') return 'image/gif';
+  if (ext === '.png') return 'image/png';
+  return 'image/jpeg';
+}
+
 function resolveImagePath(assetDir, item) {
-  const suffix = `_${item.name}_${item.code}.jpeg`;
+  const suffixes = [
+    `_${item.name}_${item.code}.gif`,
+    `_${item.name}_${item.code}.png`,
+    `_${item.name}_${item.code}.jpg`,
+    `_${item.name}_${item.code}.jpeg`,
+  ];
   const matches = fs.readdirSync(assetDir)
-    .filter((file) => file.endsWith(suffix))
+    .filter((file) => suffixes.some((suffix) => file.endsWith(suffix)))
     .map((file) => ({
       file,
       fullPath: path.join(assetDir, file),
@@ -180,6 +192,7 @@ function buildSourceLinks(sources) {
 function buildRow(item, assetDir) {
   const imagePath = resolveImagePath(assetDir, item);
   const imageBase64 = imgToBase64(imagePath);
+  const imageMimeType = getImageMimeType(imagePath);
   const quote = item.quote;
   const finance = item.finance;
   const analysis = item.analysis;
@@ -204,7 +217,7 @@ function buildRow(item, assetDir) {
     <div class="detail-inner">
       <div class="tags">${buildTags(item.cycle)}</div>
       <div class="chart-panel">
-        <img class="kline-img" src="data:image/jpeg;base64,${imageBase64}" alt="${item.name}日K线">
+        <img class="kline-img" src="data:${imageMimeType};base64,${imageBase64}" alt="${item.name}日K线">
         <div class="analysis-box">
           <div class="a-title">核心逻辑</div>
           <div class="a-item">${analysis.core}</div>
@@ -332,6 +345,15 @@ function toggle(row){
     row.classList.add('open');
     detail.classList.add('open');
   }
+}
+if(location.search.includes('preview=1')){
+  window.addEventListener('load', () => {
+    const firstRow = document.querySelector('tr.srow');
+    if(firstRow){
+      toggle(firstRow);
+      window.scrollTo(0, 0);
+    }
+  });
 }
 </script>
 </body>

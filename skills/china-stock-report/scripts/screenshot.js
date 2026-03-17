@@ -1,68 +1,13 @@
 /**
- * 东方财富行情页日 K 线截图脚本（并行优化版）。
- *
- * 改进：
- * - 只截日 K 线部分，不含成交量和技术指标
- * - 截图前关闭广告弹窗
- * - 并行多 tab，默认并发从配置读取
- * - 失败自动重试 1 次
+ * 新浪财经日 K 线静态图下载脚本。
  *
  * 用法:
  *   node scripts/screenshot.js [--date YYYYMMDD] [--stocks JSON] [--concurrency N]
  */
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
+const https = require('https');
 const { ROOT_DIR, config, paths } = require('./lib/report_config');
-
-function loadPlaywright() {
-  const homeDir = os.homedir();
-  const fallbackPaths = [
-    process.env.STOCK_PLAYWRIGHT_PATH,
-    path.join(ROOT_DIR, 'node_modules', 'playwright'),
-    path.join(homeDir, '.cache', 'opencode', 'node_modules', 'playwright'),
-    path.join(
-      homeDir,
-      '.claude',
-      'plugins',
-      'marketplaces',
-      'claude-plugins-official',
-      'external_plugins',
-      'playwright'
-    ),
-    path.join(homeDir, '.codex', 'vendor_imports', 'skills', 'skills', '.curated', 'playwright'),
-  ].filter(Boolean);
-
-  try {
-    return require('playwright');
-  } catch (_) {
-    for (const fallbackPath of fallbackPaths) {
-      try {
-        return require(fallbackPath);
-      } catch (_) {
-        // 继续尝试下一个候选路径
-      }
-    }
-
-    throw new Error('无法加载 playwright。请先安装依赖，或设置 STOCK_PLAYWRIGHT_PATH。');
-  }
-}
-
-const { chromium } = loadPlaywright();
-
-function resolveBrowserExecutable() {
-  const candidates = [
-    process.env.STOCK_BROWSER_EXECUTABLE_PATH,
-    process.env.CHROME_PATH,
-    path.join(process.env['ProgramFiles'] || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
-    path.join(process.env['ProgramFiles(x86)'] || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
-    path.join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
-    path.join(process.env['ProgramFiles'] || '', 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
-    path.join(process.env['ProgramFiles(x86)'] || '', 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
-  ].filter(Boolean);
-
-  return candidates.find((candidate) => fs.existsSync(candidate)) || null;
-}
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -91,129 +36,81 @@ function parseArgs() {
   return { date, stocks, concurrency };
 }
 
+function buildStockImageUrl(stock) {
+  const marketCode = String(stock.market).toLowerCase() === 'sh' ? 'sh' : 'sz';
+  return `https://image.sinajs.cn/newchart/daily/n/${marketCode}${stock.code}.gif`;
+}
+
 function removeStaleShots(outputDir, stock, keepFilename) {
   if (!fs.existsSync(outputDir)) return;
 
-  const suffix = `_${stock.name}_${stock.code}.jpeg`;
+  const suffix = `_${stock.name}_${stock.code}`;
   for (const file of fs.readdirSync(outputDir)) {
     if (file === keepFilename) continue;
-    if (!file.endsWith(suffix)) continue;
+    if (!file.startsWith(`${stock.seq ?? stock.rank ?? ''}_`) && !file.includes(suffix)) continue;
+    if (!file.includes(suffix)) continue;
     fs.unlinkSync(path.join(outputDir, file));
   }
 }
 
-async function closePopups(page) {
-  const closed = await page.evaluate(() => {
-    let removed = 0;
-
-    document.querySelectorAll('a, button, span, div').forEach((el) => {
-      const text = (el.textContent || '').trim();
-      if (text === '关闭' || text === '×') {
-        try {
-          el.click();
-          removed++;
-        } catch (_) {
-          // 忽略单点失败
+function downloadBinary(url, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const request = https.get(
+      url,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36',
+          Referer: 'https://finance.sina.com.cn/',
+        },
+      },
+      (response) => {
+        if (response.statusCode !== 200) {
+          response.resume();
+          reject(new Error(`http_${response.statusCode}`));
+          return;
         }
-      }
-    });
 
-    document.querySelectorAll('div, section, aside').forEach((el) => {
-      const style = window.getComputedStyle(el);
-      const zIndex = parseInt(style.zIndex, 10) || 0;
-      const position = style.position;
-      if ((position === 'fixed' || position === 'absolute') && zIndex > 100 && el.offsetWidth > 150 && el.offsetHeight > 150) {
-        try {
-          el.remove();
-          removed++;
-        } catch (_) {
-          // 忽略单点失败
-        }
+        const chunks = [];
+        response.on('data', (chunk) => chunks.push(chunk));
+        response.on('end', () => resolve(Buffer.concat(chunks)));
       }
-    });
+    );
 
-    document.querySelectorAll('[class*=mask], [class*=overlay], [class*=modal]').forEach((el) => {
-      try {
-        el.remove();
-        removed++;
-      } catch (_) {
-        // 忽略单点失败
-      }
+    request.setTimeout(timeoutMs, () => {
+      request.destroy(new Error(`timeout_${timeoutMs}`));
     });
-
-    return removed;
+    request.on('error', reject);
   });
-
-  if (closed > 0) {
-    await page.waitForTimeout(300);
-  }
 }
 
-async function screenshotStock(context, stock, outputDir) {
-  const url = `https://quote.eastmoney.com/${stock.market}${stock.code}.html`;
-  const filename = `${stock.seq ?? stock.rank ?? '00'}_${stock.name}_${stock.code}.jpeg`;
+async function downloadStockChart(stock, outputDir) {
+  const url = buildStockImageUrl(stock);
+  const filename = `${stock.seq ?? stock.rank ?? '00'}_${stock.name}_${stock.code}.gif`;
   const outputPath = path.join(outputDir, filename);
   const startTime = Date.now();
+  const maxRetries = Number(config.screenshots?.downloadRetries) || 3;
+  let lastError = null;
 
-  const page = await context.newPage();
-  try {
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForSelector('.k_chart', { timeout: 15000 }).catch(() => {});
-    await page.waitForTimeout(1500);
-
-    await closePopups(page);
-    await page.waitForTimeout(300);
-
-    const pageTitle = await page.title();
-    if (pageTitle.includes('登录') || pageTitle.includes('验证')) {
-      throw new Error(`need_login: ${pageTitle}`);
-    }
-
-    const clipInfo = await page.evaluate(() => {
-      const header = document.querySelector('.mqc_k_header');
-      const kChart = document.querySelector('.k_chart');
-      if (!kChart) return null;
-
-      const chartRect = kChart.getBoundingClientRect();
-      const klineHeight = chartRect.height * 0.5;
-
-      let top = chartRect.y;
-      if (header) {
-        const headerRect = header.getBoundingClientRect();
-        top = headerRect.y;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const buffer = await downloadBinary(url, 15000);
+      if (buffer.length < 5000) {
+        throw new Error(`image_too_small:${buffer.length}`);
       }
 
-      return {
-        x: Math.round(chartRect.x) - 2,
-        y: Math.round(top) - 2,
-        width: Math.round(chartRect.width) + 4,
-        height: Math.round(klineHeight + (chartRect.y - top)) + 4,
-      };
-    });
+      removeStaleShots(outputDir, stock, filename);
+      fs.writeFileSync(outputPath, buffer);
 
-    if (!clipInfo) {
-      console.error(`  WARN ${stock.code}: K 线元素未找到，跳过`);
+      const costMs = Date.now() - startTime;
+      console.log(`  OK ${stock.code} ${stock.name} (${costMs}ms) => ${filename}`);
       return;
+    } catch (error) {
+      lastError = error;
+      console.error(`  FAIL ${stock.code} attempt ${attempt}: ${error.message}`);
     }
-
-    removeStaleShots(outputDir, stock, filename);
-
-    await page.screenshot({
-      path: outputPath,
-      type: 'jpeg',
-      quality: 92,
-      clip: clipInfo,
-      timeout: 0,
-    });
-
-    const costMs = Date.now() - startTime;
-    console.log(`  OK ${stock.code} ${stock.name} (${costMs}ms) => ${filename}`);
-  } catch (error) {
-    console.error(`  FAIL ${stock.code}: ${error.message}`);
-    if (error.message.includes('need_login')) throw error;
-  } finally {
-    await page.close();
   }
+
+  throw lastError || new Error(`download_failed:${stock.code}`);
 }
 
 async function runParallel(tasks, concurrency) {
@@ -245,38 +142,14 @@ async function runParallel(tasks, concurrency) {
   console.log(`截图: ${stocks.length} 只, 并发: ${concurrency}, 目录: ${outputDir}`);
   const startTime = Date.now();
 
-  const executablePath = resolveBrowserExecutable();
-  if (executablePath) {
-    console.log(`使用浏览器: ${executablePath}`);
-  }
-  const browser = await chromium.launch({
-    headless: true,
-    executablePath: executablePath || undefined,
-  });
-  const context = await browser.newContext({ viewport: { width: 1400, height: 1600 } });
-
   const tasks = stocks.map((stock) => async () => {
     try {
-      await screenshotStock(context, stock, outputDir);
+      await downloadStockChart(stock, outputDir);
     } catch (error) {
-      if (error.message.includes('need_login')) throw error;
-      console.log(`  RETRY ${stock.code}...`);
-      try {
-        await screenshotStock(context, stock, outputDir);
-      } catch (retryError) {
-        console.error(`  RETRY FAIL ${stock.code}: ${retryError.message}`);
-      }
+      console.error(`  RETRY FAIL ${stock.code}: ${error.message}`);
     }
   });
 
-  try {
-    await runParallel(tasks, concurrency);
-  } catch (error) {
-    if (error.message.includes('need_login')) {
-      console.error('\n检测到登录或验证码，停止执行。');
-    }
-  }
-
-  await browser.close();
+  await runParallel(tasks, concurrency);
   console.log(`\n完成，总耗时 ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
 })();
