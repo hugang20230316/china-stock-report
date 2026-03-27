@@ -32,8 +32,37 @@ function httpGet(url, timeout = 10000) {
   });
 }
 
+function formatReportDate(date) {
+  if (!date || date.length !== 8) return '';
+  return `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`;
+}
+
+async function fetchQuoteFromKline(stock, date) {
+  const secid = (stock.market === 'sh' ? '1' : '0') + '.' + stock.code;
+  const url = `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secid}&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&end=20500101&lmt=20`;
+  const targetDate = formatReportDate(date);
+  const raw = await httpGet(url);
+  const json = JSON.parse(raw);
+  const klines = (json.data && json.data.klines) || [];
+  if (!klines.length) {
+    throw new Error('kline empty');
+  }
+
+  const matched = [...klines].reverse().find((item) => !targetDate || item.startsWith(targetDate)) || klines[klines.length - 1];
+  const parts = matched.split(',');
+  if (parts.length < 11) {
+    throw new Error('kline format invalid');
+  }
+
+  return {
+    price: Number(parts[2]).toFixed(2),
+    change: Number(parts[8]).toFixed(2),
+    turnover: Number(parts[10]).toFixed(2),
+  };
+}
+
 // 东方财富延迟行情
-async function fetchQuote(stock) {
+async function fetchQuote(stock, date) {
   const secid = (stock.market === 'sh' ? '1' : '0') + '.' + stock.code;
   const url = `https://push2delay.eastmoney.com/api/qt/stock/get?fields=f43,f44,f45,f46,f47,f48,f50,f57,f58,f116,f117,f162,f170&secid=${secid}`;
   try {
@@ -41,13 +70,23 @@ async function fetchQuote(stock) {
     const json = JSON.parse(raw);
     const d = json.data;
     if (!d) return null;
-    return {
+    const quote = {
       price: (d.f43 / 100).toFixed(2),
       change: (d.f170 / 100).toFixed(2),
       turnover: (d.f50 / 100).toFixed(2),
       mcap: Math.round(d.f116 / 100000000),
       pe: d.f162 > 0 ? (d.f162 / 100).toFixed(2) : (d.f162 < 0 ? 'loss' : '-')
     };
+
+    // 次日盘前有时会返回 0 价，回退到报告日的日K收盘数据，避免把 0 写进正式报告。
+    if (Number(quote.price) <= 0) {
+      const klineQuote = await fetchQuoteFromKline(stock, date);
+      quote.price = klineQuote.price;
+      quote.change = klineQuote.change;
+      quote.turnover = klineQuote.turnover;
+    }
+
+    return quote;
   } catch (e) {
     return { error: e.message };
   }
@@ -99,12 +138,12 @@ async function fetchFinance(stock) {
 }
 
 (async () => {
-  const { stocks } = parseArgs();
+  const { stocks, date } = parseArgs();
   if (!stocks.length) { console.error('No stocks'); process.exit(1); }
 
   // 全部并行拉取
   const results = await Promise.all(stocks.map(async s => {
-    const [quote, finance] = await Promise.all([fetchQuote(s), fetchFinance(s)]);
+    const [quote, finance] = await Promise.all([fetchQuote(s, date), fetchFinance(s)]);
     return { code: s.code, name: s.name, market: s.market, quote, finance };
   }));
 
