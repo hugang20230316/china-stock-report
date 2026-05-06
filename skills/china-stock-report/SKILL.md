@@ -17,7 +17,7 @@ description: 生成 A 股当日推荐 HTML 报告，并维护与之配套的抓�
 
 1. 先确认本机绝对日期与时间；如果用户要求“今天/当天”，必须在最终结果中使用绝对日期。
 2. 先读取 `references/stock-summary-spec.md`，检查是否存在已满 5 个交易日且尚未复盘的历史报告。
-3. 读取 `references/stock-report-spec.md` 的 `2.6`、`2.7`、`2.8`、`4.1.1`、`4.1.2`、`8.1`、`9.3`、`9.4`，并读取 `references/raw-generation-spec.md`，确认今天的 raw 文件格式、筛选边界和失败处理规则。
+3. 读取 `references/stock-report-spec.md` 的 `2.6`、`2.7`、`2.8`、`4.1.1`、`4.1.2`、`4.1.3`、`8.1`、`9.3`、`9.4`，并读取 `references/raw-generation-spec.md`，确认今天的 raw 文件格式、筛选边界和失败处理规则。
 4. 调用 `china-stock-analysis` 生成当天 raw 文件，文件名必须为 `data/raw/china_stock_analysis_raw_YYYYMMDD.json`。
 5. 运行 `node scripts/verify_raw.js --date YYYYMMDD`，确认 raw 文件确实来自当天脚本输出，且没有混入 LLM 编造数字。
 6. 运行 `node scripts/build_analysis_from_raw.js --date YYYYMMDD`，使用 `fetch_data.js` 补齐当天行情与财务字段，生成 `data/analysis/analysis_result_YYYYMMDD.json`。
@@ -35,6 +35,7 @@ description: 生成 A 股当日推荐 HTML 报告，并维护与之配套的抓�
 - HTML 中的股票名单、推荐理由、分析段落、催化与风险，必须全部来自当天 `china-stock-analysis` 的 raw output 与后续补数结果。
 - 禁止直接复用旧报告名单；`references/stock-report-spec.md` 的 `9.3` 观察池只可用于候选跟踪和交叉检查。
 - 近 5 日涨幅大于等于 `20%` 或近 10 日涨幅大于等于 `30%` 的股票直接排除；无法核对时必须标注“待验证”或停止继续。
+- 当日换手率小于 `1%` 的股票直接排除；换手率在 `1%-2%` 之间的股票，只有同时属于当天主线热点且能说明资金承接时才允许保留。
 - 同一行业最多保留 2 只，优先保证行业分散和风险分散。
 - 如果 5 分钟内无法完成单股数据源/截图预检，必须立即中止并向用户说明，不要长时间卡在依赖缺失或浏览器不可用的问题上。
 - 如果 `china-stock-analysis`、东方财富接口或 Playwright 截图任一关键步骤失败，必须停止正式报告生成并向用户汇报失败点。

@@ -44,6 +44,7 @@ python "<codex-home>/skills/china-stock-analysis/scripts/stock_screener.py" \
   --scope hs300 \
   --pe-min 5 --pe-max 60 \
   --market-cap-min 500 \
+  --turnover-min 1 \
   --top 40 \
   --output "<workspace-root>/data/tmp/candidates_{date}.json"
 ```
@@ -67,6 +68,8 @@ LLM 读取 Phase 1 的两个输出文件，按以下规则生成 raw 文件。
 2. 优先选 `板块名称` 与 `sector_{date}.json` 的 `top_sectors` 有交集的股票
 3. 6 只股票至少覆盖 3 个不同行业
 4. 同行业最多 2 只
+5. `换手率 < 1%` 的股票直接排除，不得进入 top6
+6. `换手率 1%-2%` 的股票，只有在所属板块同时出现在 `top_sectors` 或 `top_inflow_sectors` 时才允许保留
 
 ### 数字字段：只能复制，不能发明
 
@@ -79,6 +82,8 @@ LLM 读取 Phase 1 的两个输出文件，按以下规则生成 raw 文件。
 | `_sourceProof.rawPrice` | `最新价` |
 | `_sourceProof.rawPe` | `市盈率` |
 | `_sourceProof.rawMcap` | `总市值(亿)` |
+
+补充要求：`换手率` 字段必须保留在 candidates 文件中，供筛选规则和 `verify_raw.js` 校验低热度股票过滤是否生效。
 
 注意：`quote.price`、`quote.changePct`、`quote.peTtm`、`quote.mcapYi` 这四个字段不在 raw 文件中填写。它们由 `build_analysis_from_raw.js` 调用 `fetch_data.js` 在运行时从东方财富获取并写入 `analysis_result`。
 
@@ -171,6 +176,7 @@ node scripts/verify_raw.js \
 4. `_sourceProof.rawMcap` 与 candidates 中该 code 的 `总市值(亿)` 误差 < 0.01
 5. `_sourceProof.screenTime` 在当天日期内
 6. raw 文件的 `quote.*` 字段不存在
+7. candidates 中该 code 的 `换手率` 必须存在且不低于 `1%`
 
 验证失败则退出，不得继续执行 Phase 4。
 
@@ -197,6 +203,7 @@ node scripts/generate_report_html.js --date {date}
 | `_sourceProof` 缺失或 `screenTime` 不在当天 | LLM 使用了旧数据或伪造溯源 |
 | top6 与前一天重合 4 只以上，且无新 `candidates` 文件 | LLM 复用了历史结果 |
 | `data/tmp/candidates_{date}.json` 不存在 | Phase 1 被跳过 |
+| top6 中出现 `换手率 < 1%` 的股票 | LLM 忽略了低热度过滤规则 |
 
 ---
 

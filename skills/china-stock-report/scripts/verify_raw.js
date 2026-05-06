@@ -11,6 +11,7 @@
  *   2. raw 文件中每只股票的 code 必须出现在 candidates results 中
  *   3. raw 文件必须包含 _sourceProof，且其中的价格/PE/市值与 candidates 对齐
  *   4. raw 文件中不得出现 quote.* 字段
+ *   5. 候选池里的低换手率股票不得进入正式 raw
  *
  * 通过时打印 OK 并以 exit(0) 退出；失败时打印错误并以 exit(1) 退出。
  */
@@ -22,6 +23,7 @@ const { paths, resolvePath } = require('./lib/report_config');
 const RAW_PREFIX = 'china_stock_analysis_raw_';
 const CANDIDATES_PREFIX = 'candidates_';
 const VALUE_TOLERANCE = 0.01;
+const MIN_TURNOVER_PCT = 1;
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -111,6 +113,13 @@ function main() {
     if (!candidate) {
       errors.push(`${item.name}(${code}) 不在 candidates 文件中，说明股票选择没有基于脚本输出`);
       continue;
+    }
+
+    const turnover = toNum(candidate['换手率']);
+    if (turnover === null) {
+      errors.push(`${item.name}(${code}) candidates 缺少换手率，无法验证低热度过滤规则`);
+    } else if (turnover < MIN_TURNOVER_PCT) {
+      errors.push(`${item.name}(${code}) candidates 换手率=${turnover}% 低于 ${MIN_TURNOVER_PCT}% ，不得进入正式推荐池`);
     }
 
     if (item.quote && Object.keys(item.quote).length > 0) {
